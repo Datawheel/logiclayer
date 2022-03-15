@@ -1,9 +1,16 @@
+import logging.config
+import os
+
 import httpx
 
 from logiclayer import LogicLayer
 from logiclayer import __version__ as logiclayer_version
-from logiclayer_olap import OlapModule
 from logiclayer_geoservice import GeoserviceModule
+from logiclayer_olap import OlapModule
+
+# https://www.datadoghq.com/blog/python-logging-best-practices/
+config_filepath = os.environ.get("LOGICLAYER_LOGGING_CONFIG", "logging.ini")
+logging.config.fileConfig(config_filepath, disable_existing_loggers=False)
 
 
 # DEFINE A CHECK

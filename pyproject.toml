@@ -9,7 +9,7 @@ readme = "PACKAGE.md"
 [tool.poetry.dependencies]
 python = "^3.7.9"
 asyncio = "^3.4.3"
-fastapi = "^0.75.0"
+fastapi = "^0.70.0"
 
 [tool.poetry.dev-dependencies]
 asynch = "^0.1.9"
@@ -19,6 +19,7 @@ httpx = "^0.18.0"
 pytest = "^6.2.0"
 requests = "^2.26.0"
 uvicorn = "^0.14.0"
+economic-complexity = "0.1.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

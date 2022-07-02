@@ -1,13 +1,14 @@
-<a href="https://github.com/Datawheel/logiclayer"><img src="https://flat.badgen.net/github/release/Datawheel/logiclayer" /></a>
-<a href="https://github.com/Datawheel/logiclayer/blob/master/LICENSE"><img src="https://flat.badgen.net/github/license/Datawheel/logiclayer" /></a>
-<a href="https://github.com/Datawheel/logiclayer/issues"><img src="https://flat.badgen.net/github/issues/Datawheel/logiclayer" /></a>
-
-
-> A simple framework to quickly compose and use multiple functionalities as endpoints.
-
+A simple framework to quickly compose and use multiple functionalities as endpoints.  
 LogicLayer is built upon FastAPI to provide a simple way to group functionalities into reusable modules.
 
-## Usage
+<p>
+<a href="https://github.com/Datawheel/logiclayer/releases"><img src="https://flat.badgen.net/github/release/Datawheel/logiclayer" /></a>
+<a href="https://github.com/Datawheel/logiclayer/blob/master/LICENSE"><img src="https://flat.badgen.net/github/license/Datawheel/logiclayer" /></a>
+<a href="https://github.com/Datawheel/logiclayer/"><img src="https://flat.badgen.net/github/checks/Datawheel/logiclayer" /></a>
+<a href="https://github.com/Datawheel/logiclayer/issues"><img src="https://flat.badgen.net/github/issues/Datawheel/logiclayer" /></a>
+</p>
+
+## Getting started
 
 To generate a new instance of LogicLayer, create a python file and execute this snippet:
 
@@ -36,9 +37,8 @@ $ pip install uvicorn[standard]
 $ uvicorn example:layer
 ```
 
-> Note: The `example:layer` parameter refers to `full.module.path:asgi_object`, and will change according to how you set the file.
+Note the `example:layer` is the reference to the `layer` variable in the `example` module, which [points to the ASGI app instance](https://www.uvicorn.org/#usage).
 
-## License
-
-&copy; 2022 Datawheel, LLC.  
+---
+&copy; 2022 [Datawheel, LLC.](https://www.datawheel.us/)  
 This project is licensed under [MIT](./LICENSE).

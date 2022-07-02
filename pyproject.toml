@@ -5,16 +5,15 @@ description = "A simple framework to quickly compose and use multiple functional
 authors = ["Francisco Abarzua <francisco@datawheel.us>"]
 license = "MIT"
 readme = "PACKAGE.md"
+repository = "https://github.com/Datawheel/logiclayer"
 
 [tool.poetry.dependencies]
-python = "^3.7.9"
-asyncio = "^3.4.3"
-fastapi = "^0.75.0"
+python = "^3.7"
+asyncio = "^3.4.0"
+fastapi = ">=0.75 <1.0"
 
 [tool.poetry.dev-dependencies]
 asynch = "^0.1.9"
-black = "^21.7b0"
-flake8 = "^3.9.0"
 httpx = "^0.18.0"
 pytest = "^6.2.0"
 requests = "^2.26.0"

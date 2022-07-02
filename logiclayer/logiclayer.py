@@ -4,6 +4,7 @@ Contains the main definitions for the LogicLayer class.
 """
 
 import asyncio
+import logging
 from inspect import isawaitable
 from typing import Any, Callable, Coroutine, Dict, List, Union
 
@@ -12,11 +13,11 @@ from starlette.responses import Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from logiclayer.exceptions import HealthCheckError
-from logiclayer.logging import logger
 from logiclayer.module import LogicLayerModule
 
-
 CheckCallable = Callable[..., Union[bool, Coroutine[Any, Any, bool]]]
+
+logger = logging.getLogger("logiclayer")
 
 
 class LogicLayer:

@@ -15,5 +15,9 @@ class LogicLayerModule(abc.ABC):
     """
 
     @abc.abstractmethod
-    def setup(self, router: APIRouter) -> Union[None, Coroutine[Any, Any, None]]:
+    def setup(
+        self,
+        router: APIRouter,
+        **kwargs
+    ) -> Union[None, Coroutine[Any, Any, None]]:
         pass

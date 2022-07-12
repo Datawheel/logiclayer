@@ -25,12 +25,21 @@ class LogicLayer:
 
     app: ASGIApp
     checks: List[CheckCallable]
+    is_debug: bool
+    is_checking: bool
     is_ready: bool
     modules: Dict[str, "LogicLayerModule"]
     routes: Dict[str, Callable[..., Coroutine[Any, Any, Response]]]
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        debug: bool = False,
+        healthcheck: bool = True,
+    ):
         self.checks = []
+        self.is_debug = debug
+        self.is_checking = healthcheck
         self.is_ready = False
         self.modules = {}
         self.routes = {}
@@ -47,7 +56,8 @@ class LogicLayer:
 
     @property
     def route_list(self):
-        """Returns a set with the routes registered in this LogicLayer instance."""
+        """Returns a set with the routes registered in this LogicLayer instance.
+        """
         return set().union(self.modules.keys(), self.routes.keys())
 
     def add_check(self, func: CheckCallable):
@@ -84,7 +94,7 @@ class LogicLayer:
         logger.debug(f"Route added on path {path}: {func.__name__}")
         self.routes[path] = func
 
-    async def setup(self, healthcheck=True) -> ASGIApp:
+    async def setup(self) -> ASGIApp:
         """Initializes a FastAPI app using the current LogicLayer setup."""
         logger.debug(
             f"Setting up LogicLayer instance: {len(self.checks)} healthchecks, "
@@ -92,12 +102,18 @@ class LogicLayer:
         )
         app = FastAPI()
 
-        if healthcheck and len(self.checks) > 0:
+        if self.is_checking and len(self.checks) > 0:
             run_checks = setup_healthcheck(self.checks)
             app.add_api_route("/_health", run_checks, name="healthcheck")
 
+        kwargs = {
+            "debug": self.is_debug,
+            "healthcheck": self.is_checking,
+        }
+
         await asyncio.gather(
-            *(setup_module(app, path, module) for path, module in self.modules.items())
+            *(setup_module(app, path, module, params=kwargs)
+             for path, module in self.modules.items())
         )
 
         for path, func in self.routes.items():
@@ -106,10 +122,16 @@ class LogicLayer:
         return app
 
 
-async def setup_module(app: FastAPI, path: str, module: LogicLayerModule):
+async def setup_module(
+    app: FastAPI,
+    path: str,
+    module: LogicLayerModule,
+    *,
+    params: Dict[str, Any]
+):
     router = APIRouter()
 
-    result = module.setup(router)
+    result = module.setup(router, **params)
     if isawaitable(result):
         await result
 

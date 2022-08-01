@@ -1,26 +1,52 @@
-"""
-"""
-
-import uuid
 from fastapi.testclient import TestClient
 
-
-def test_module_echo(test_client: TestClient):
-    """Tests a simple demo app setup."""
-
-    nonce = uuid.uuid4()
-    response = test_client.get("/echo", params={"msg": str(nonce)})
-    assert response.status_code == 200
-
-    root = response.json()
-    assert root["status"] == "ok"
-    assert root["data"] == "eyJlbmNvZGluZyI6ImJhc2U2NCJ9"
-    assert root["echo"] == str(nonce)
+import logiclayer as ll
 
 
-def test_checks(test_client: TestClient):
-    """Tests the proper execution of healthchecks."""
+def test_route_check(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res = client.get("/_health")
 
-    response = test_client.get("/_health")
-    assert response.status_code == 204
-    assert response.text == ""
+    assert res.status_code == 204
+    assert res.text == ""
+
+def test_route_status(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res = client.get("/")
+
+    assert res.status_code == 200
+    assert res.json() == {
+        "status": "ok",
+        "software": "LogicLayer",
+        "version": ll.__version__,
+    }
+
+def test_route_random(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res1 = client.get("/echo/random")
+        res2 = client.get("/echo/random")
+
+    assert res1.status_code == 200
+    assert res2.status_code == 200
+    assert res1.json() == res2.json()
+
+def test_route_empty(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res = client.get("/echo/empty")
+
+    assert res.status_code == 200
+    assert res.json() == {}
+
+def test_route_query(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res = client.get("/echo/number?value=10")
+
+    assert res.status_code == 200
+    assert res.json() == {"number": 10}
+
+def test_route_path(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res = client.get("/echo/string-beta")
+
+    assert res.status_code == 200
+    assert res.json() == {"string": "beta"}

@@ -14,6 +14,10 @@ This package is available in PyPI under the name `logiclayer`. You can use `pip`
 pip install logiclayer
 ```
 
+## Usage
+
+Check the directions in the [PACKAGE.md file](./PACKAGE.md).
+
 ## Development environment
 
 To manage its dependencies, this project uses `poetry`. The [pyproject.toml](pyproject.toml) file contains all the needed dependencies an devDependencies needed. To install just run:

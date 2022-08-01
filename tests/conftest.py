@@ -7,30 +7,61 @@ fixture name. Check the documentation for pytest on fixtures for more details.
 * pytest fixtures: <https://docs.pytest.org/en/6.2.x/fixture.html>
 """
 
+from dataclasses import dataclass
+from random import randint
+
 import httpx
 import pytest
-from fastapi.testclient import TestClient
 
-from logiclayer import LogicLayer
-from logiclayer.echo import EchoModule
+import logiclayer as ll
 
 
-def create_test_app():
+@dataclass
+class BodySchema:
+    value: str
+
+
+def route_check():
+    res = httpx.get("http://clients3.google.com/generate_204")
+    return (res.status_code == 204) and (res.headers.get("Content-Length") == 0)
+
+def route_status():
+    return {"status": "ok", "software": "LogicLayer", "version": ll.__version__}
+
+
+class EchoModule(ll.LogicLayerModule):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.random = randint(0, 9)
+
+    @ll.route("GET", "/random")
+    async def route_random(self):
+        return {"random": self.random}
+
+    @ll.route("GET", "/empty")
+    def route_empty():
+        return {}
+
+    @ll.route("GET", "/number")
+    async def route_query(self, value: int):
+        return {"number": value}
+
+    @ll.route("GET", "/string-{asdf}")
+    def route_path(self, asdf: str):
+        return {"string": asdf}
+
+    @ll.route("GET", "/body")
+    async def route_body(self, body: BodySchema):
+        return body.value
+
+
+@pytest.fixture
+def layer():
     echo = EchoModule()
 
-    def online_check() -> bool:
-        res = httpx.get("http://clients3.google.com/generate_204")
-        return (res.status_code == 204) and (res.headers.get("Content-Length") == "0")
-
-    layer = LogicLayer()
-    layer.add_check(online_check)
-    layer.add_module(echo, prefix="/echo")
+    layer = ll.LogicLayer()
+    layer.add_check(route_check)
+    layer.add_route("/", route_status)
+    layer.add_module("/echo", echo)
 
     return layer
-
-
-@pytest.fixture(autouse=True)
-def test_client():
-    app = create_test_app()
-    client = TestClient(app)
-    return client

@@ -5,158 +5,100 @@ Contains the main definitions for the LogicLayer class.
 
 import asyncio
 import logging
-from inspect import isawaitable
-from typing import Any, Callable, Coroutine, Dict, List, Union
+from typing import Any, List
 
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI, HTTPException
 from starlette.responses import Response
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import Receive, Scope, Send
 
-from logiclayer.exceptions import HealthCheckError
-from logiclayer.module import LogicLayerModule
-
-CheckCallable = Callable[..., Union[bool, Coroutine[Any, Any, bool]]]
+from .module import CallableMayReturnCoroutine, LogicLayerModule, _await_for_it
 
 logger = logging.getLogger("logiclayer")
 
 
 class LogicLayer:
-    """LogicLayer class"""
+    """Main LogicLayer app handler
 
-    app: ASGIApp
-    checks: List[CheckCallable]
-    is_debug: bool
-    is_checking: bool
-    is_ready: bool
-    modules: Dict[str, "LogicLayerModule"]
-    routes: Dict[str, Callable[..., Coroutine[Any, Any, Response]]]
+    Instances of this class act like ASGI callables."""
 
-    def __init__(
-        self,
-        *,
-        debug: bool = False,
-        healthcheck: bool = True,
-    ):
-        self.checks = []
-        self.is_debug = debug
-        self.is_checking = healthcheck
-        self.is_ready = False
-        self.modules = {}
-        self.routes = {}
+    app: FastAPI
+    _checklist: List[CallableMayReturnCoroutine[bool]]
+    _debug: bool
+
+    def __init__(self, *, debug: bool = False, healthchecks: bool = True):
+        self.app = FastAPI()
+        self._checklist = []
+        self._debug = debug
+
+        if healthchecks:
+            self.app.add_api_route("/_health", _new_healthcheck(self._checklist))
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """This method converts the :class:`LogicLayer` instance into an ASGI
-        compatible callable.
-
-        It also does the asynchonous setup of the modules on the first request.
+        """This method converts the :class:`LogicLayer` instance into an
+        ASGI-compatible callable.
         """
-        if not hasattr(self, "app"):
-            self.app = await self.setup()
         await self.app(scope, receive, send)
 
-    @property
-    def route_list(self):
-        """Returns a set with the routes registered in this LogicLayer instance.
-        """
-        return set().union(self.modules.keys(), self.routes.keys())
-
-    def add_check(self, func: CheckCallable):
+    def add_check(self, func: CallableMayReturnCoroutine[bool]):
         """Stores a function to be constantly run as a healthcheck for the app.
 
         Arguments:
             func :Callable[..., Coroutine[Any, Any, Response]]:
         """
-        logger.debug(f"Check added: {func.__name__}")
-        self.checks.append(func)
+        logger.debug("Check added: %s", func.__name__)
+        self._checklist.append(func)
 
-    def add_module(self, module: "LogicLayerModule", prefix: str):
-        """Stores a module instance in the current LogicLayer setup.
-
-        Modifications can be done to module instance properties at any point
-        before the call of the main setup() method.
+    def add_module(self, prefix: str, module: LogicLayerModule, **kwargs):
+        """Setups a module instance in the current LogicLayer instance.
 
         Arguments:
-            module :LogicLayerModule:
             prefix :str:
+                The prefix path to all routes in the module.
+                Must start, and not end, with `/`.
+            module :logiclayer.LogicLayerModule:
+                An instance of a subclass of :class:`logiclayer.LogicLayerModule`.
+
+        Keyword arguments:
+            {any from :func:`FastAPI.include_router` function}
         """
-        logger.debug(f"Module added on path {prefix}: {type(module).__name__}")
-        self.modules[prefix] = module
+        logger.debug("Module added on path %s: %s", prefix, type(module).__name__)
+        self.app.include_router(module.router, prefix=prefix, **kwargs)
+        self.add_check(module._llhealthcheck)
 
-    def add_route(self, path: str, func: Callable[..., Coroutine[Any, Any, Response]]):
-        """Stores a function to be used in the execution of a specific path.
-
-        The function to be executed at a specific path can be changed at any
-        point before the call of the main setup() method.
+    def add_route(self, path: str, func: CallableMayReturnCoroutine[Any], **kwargs):
+        """Setups a path function to be used directly in the root app.
 
         Arguments:
-            path :str: -
+            path :str:
+                The full path to the route this function will serve.
+            func :Callable[..., Response] | Callable[..., Coroutine[Any, Any, Response]]:
+                The function which will serve the content for the route.
         """
-        logger.debug(f"Route added on path {path}: {func.__name__}")
-        self.routes[path] = func
+        logger.debug("Route added on path %s: %s", path, func.__name__)
+        self.app.add_api_route(path, func, **kwargs)
 
-    async def setup(self) -> ASGIApp:
-        """Initializes a FastAPI app using the current LogicLayer setup."""
-        logger.debug(
-            f"Setting up LogicLayer instance: {len(self.checks)} healthchecks, "
-            f"{len(self.modules)} modules, and {len(self.routes)} individual routes"
-        )
-        app = FastAPI()
+    async def call_startup(self):
+        """Forces a call to all handlers registered for the 'startup' event."""
+        await self.app.router.startup()
 
-        if self.is_checking and len(self.checks) > 0:
-            run_checks = setup_healthcheck(self.checks)
-            app.add_api_route("/_health", run_checks, name="healthcheck")
-
-        kwargs = {
-            "debug": self.is_debug,
-            "healthcheck": self.is_checking,
-        }
-
-        await asyncio.gather(
-            *(setup_module(app, path, module, params=kwargs)
-             for path, module in self.modules.items())
-        )
-
-        for path, func in self.routes.items():
-            app.add_api_route(path, endpoint=func)
-
-        return app
+    async def call_shutdown(self):
+        """Forces a call to all handlers registered for the 'shutdown' event."""
+        await self.app.router.shutdown()
 
 
-async def setup_module(
-    app: FastAPI,
-    path: str,
-    module: LogicLayerModule,
-    *,
-    params: Dict[str, Any]
-):
-    router = APIRouter()
+def _new_healthcheck(checklist: List[CallableMayReturnCoroutine[bool]]):
+    """Creates a healthcheck route function, which runs all callables in
+    `checklist` for diagnostic."""
 
-    result = module.setup(router, **params)
-    if isawaitable(result):
-        await result
-
-    app.include_router(router, prefix=path)
-
-
-def setup_healthcheck(checks: List[CheckCallable]):
-    async def run_checks():
+    async def ll_healthcheck():
         try:
-            await asyncio.gather(*(hc_coro_wrapper(check) for check in checks))
+            gen = (_await_for_it(item) for item in checklist)
+            await asyncio.gather(*gen)
         except Exception as exc:
-            logger.error(exc)
+            msg = "An element in Healthcheck failed."
+            logger.error(msg, exc_info=exc)
+            raise HTTPException(500, msg) from None
 
         return Response("", status_code=204)
 
-    return run_checks
-
-
-async def hc_coro_wrapper(check: CheckCallable) -> None:
-    """Wraps a function, which might be synchronous or asynchronous, into an
-    asynchronous function, which returns the value wrapped in a coroutine.
-    """
-    result = check()
-    if isawaitable(result):
-        result = await result
-
-    if result is not True:
-        raise HealthCheckError()
+    return ll_healthcheck

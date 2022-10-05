@@ -35,6 +35,7 @@ jobs:
   release:
     needs: test
     runs-on: ubuntu-latest
+    name: Create new release in PyPI
     strategy:
       matrix:
         python-version: ['3.7']
@@ -52,7 +53,7 @@ jobs:
           pip install poetry
           poetry config virtualenvs.create false
 
-      - name: Release to pypi
+      - name: Publish release to PyPI
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN }}
         run: poetry publish --build

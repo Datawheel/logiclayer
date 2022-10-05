@@ -5,10 +5,12 @@ Contains the main definitions for the LogicLayer class.
 
 import asyncio
 import logging
-from typing import Any, List
+from pathlib import Path
+from typing import Any, List, Union
 
 from fastapi import FastAPI, HTTPException
-from starlette.responses import Response
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse, Response
 from starlette.types import Receive, Scope, Send
 
 from .module import CallableMayReturnCoroutine, LogicLayerModule, _await_for_it
@@ -65,6 +67,11 @@ class LogicLayer:
         self.app.include_router(module.router, prefix=prefix, **kwargs)
         self.add_check(module._llhealthcheck)
 
+    def add_redirect(self, path: str, url: str, *, code: int = 307, headers=None):
+        """"""
+        func = lambda: RedirectResponse(url=url, status_code=code, headers=headers)
+        self.add_route(path, func)
+
     def add_route(self, path: str, func: CallableMayReturnCoroutine[Any], **kwargs):
         """Setups a path function to be used directly in the root app.
 
@@ -76,6 +83,23 @@ class LogicLayer:
         """
         logger.debug("Route added on path %s: %s", path, func.__name__)
         self.app.add_api_route(path, func, **kwargs)
+
+    def add_static(self, path: str, target: Union[str, Path], *, html: bool = False):
+        """Setups a static folder to serve the files inside it.
+
+        Arguments:
+            path :str:
+                The full path to the route where the folder will be available.
+            target :str: | :pathlib.Path:
+                The path to the directory containing the static files to serve.
+        Keyword Arguments:
+            html :bool:
+                HTML mode. Looks for an index.html file when the requested path
+                is a directory, and serves it automatically.
+        """
+        target = (Path(target) if isinstance(target, str) else target).resolve()
+        logger.debug("Static folder added on path %s")
+        self.app.mount(path, StaticFiles(directory=target, html=html))
 
     async def call_startup(self):
         """Forces a call to all handlers registered for the 'startup' event."""

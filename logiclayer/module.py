@@ -102,18 +102,22 @@ def _bind_if_needed(func, self):
     positional parameter, only if this positional parameter is called 'self'."""
     sig = inspect.signature(func)
     if "self" in sig.parameters:
-        return (
-            async_partial(func, self)
-            if inspect.iscoroutinefunction(func)
-            else partial(func, self)
-        )
+        if inspect.iscoroutinefunction(func):
+            return async_partial(func, self)
+
+        pfunc = partial(func, self)
+        setattr(pfunc, "__name__", func.__name__)
+        return pfunc
     return func
 
 
 def async_partial(func, self):
     """Async-enabled monkeypatch for the partial function."""
+    pfunc = partial(func, self)
+    name = getattr(func, "__name__", "func")  # FIXME
+    setattr(pfunc, "__name__", name)
 
-    @wraps(partial(func, self))
+    @wraps(pfunc)
     async def wrapper(*args, **kwargs):
         return await func(self, *args, **kwargs)
 

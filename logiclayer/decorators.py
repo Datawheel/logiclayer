@@ -9,9 +9,14 @@ from .module import MethodType, ModuleMethod
 C = TypeVar("C", bound=Callable[..., Any])
 
 
-def exception_handler(exc: Type[Exception]):
+def exception_handler(exc: Type[Exception], *, debug: bool = False):
     def exception_handler_decorator(fn: C) -> C:
-        method = ModuleMethod(MethodType.EXCEPTION_HANDLER, func=fn)
+        method = ModuleMethod(
+            MethodType.EXCEPTION_HANDLER,
+            debug_only=debug,
+            func=fn,
+            kwargs={"exception": exc},
+        )
         setattr(fn, LOGICLAYER_METHOD_ATTR, method)
         return fn
 
@@ -26,7 +31,7 @@ def healthcheck(func: CallableMayReturnCoroutine[bool]):
 
 def on_startup(func: Optional[C], *, debug: bool = False):
     def startup_decorator(fn: C) -> C:
-        method = ModuleMethod(MethodType.EVENT_STARTUP, debug=debug, func=fn)
+        method = ModuleMethod(MethodType.EVENT_STARTUP, debug_only=debug, func=fn)
         setattr(fn, LOGICLAYER_METHOD_ATTR, method)
         return fn
 
@@ -35,7 +40,7 @@ def on_startup(func: Optional[C], *, debug: bool = False):
 
 def on_shutdown(func: Optional[C], *, debug: bool = False):
     def shutdown_decorator(fn: C) -> C:
-        method = ModuleMethod(MethodType.EVENT_SHUTDOWN, debug=debug, func=fn)
+        method = ModuleMethod(MethodType.EVENT_SHUTDOWN, debug_only=debug, func=fn)
         setattr(fn, LOGICLAYER_METHOD_ATTR, method)
         return fn
 
@@ -73,7 +78,7 @@ def route(
 
     def route_decorator(fn: C) -> C:
         method = ModuleMethod(
-            MethodType.ROUTE, debug=debug, func=fn, kwargs=kwargs, path=path
+            MethodType.ROUTE, debug_only=debug, func=fn, kwargs=kwargs, path=path
         )
         setattr(fn, LOGICLAYER_METHOD_ATTR, method)
         return fn

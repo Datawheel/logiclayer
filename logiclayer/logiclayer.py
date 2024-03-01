@@ -72,14 +72,8 @@ class LogicLayer:
             {any from :func:`FastAPI.include_router` function}
         """
 
-        logger.debug("Module added on path %s: %s", prefix, type(module).__name__)
-
-        module.debug = self.debug
-        self.app.include_router(module.router, prefix=prefix, **kwargs)
-        self.add_check(module._llhealthcheck)
-
-        for exc_cls, exc_handler in module.exception_handlers:
-            self.app.add_exception_handler(exc_cls, exc_handler)
+        logger.debug("Module added on path %s: %s", prefix, module.name)
+        module.include_into(self, prefix=prefix, **kwargs)
 
     def add_redirect(
         self,

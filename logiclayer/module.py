@@ -23,7 +23,7 @@ class MethodType(Enum):
 class ModuleMethod:
     kind: MethodType
     func: CallableMayReturnCoroutine[Any]
-    debug: bool = False
+    debug_only: bool = False
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
     path: str = ""
 
@@ -75,40 +75,38 @@ class LogicLayerModule(metaclass=ModuleMeta):
     Routes can be set using the provided decorators on any instance method.
     """
 
+    router: APIRouter
     _llexceptions: Dict[Type[Exception], ModuleMethod]
     _llhealthchecks: Tuple[ModuleMethod, ...]
     _llroutes: Tuple[ModuleMethod, ...]
     _llshutdown: Tuple[ModuleMethod, ...]
     _llstartup: Tuple[ModuleMethod, ...]
 
-    def __init__(self, debug: bool = False, **kwargs):
-        router = APIRouter(**kwargs)
+    def __init__(self, **kwargs):
+        self.router = APIRouter(**kwargs)
 
-        router.on_startup.extend(item.bound_to(self) for item in self._llstartup)
-        router.on_shutdown.extend(item.bound_to(self) for item in self._llshutdown)
-
-        for item in self._llroutes:
-            func = item.bound_to(self)
-            router.add_api_route(item.path, func, **item.kwargs)
-
-        self.debug = debug
-        self.router = router
+    @property
+    def name(self):
+        return type(self).__name__
 
     @property
     def route_paths(self):
         return (item.path for item in self._llroutes)
 
-    @property
-    def exception_handlers(self):
-        return (
-            (exc_cls, method.bound_to(self))
-            for exc_cls, method in self._llexceptions.items()
-        )
+    def include_into(self, layer: "LogicLayer", *, prefix: str, **kwargs):
+        app = layer.app
+        router = self.router
 
-    async def _llhealthcheck(self) -> bool:
-        try:
-            gen = (_await_for_it(item.func) for item in self._llhealthchecks)
-            result = await asyncio.gather(*gen)
-            return all(item is True for item in result)
-        except Exception:
-            return False
+        for exc_cls, method in self._llexceptions.items():
+            app.add_exception_handler(exc_cls, method.bound_to(self))
+
+        for item in self._llhealthchecks:
+            layer.add_check(item.bound_to(self))
+
+        router.on_startup.extend(item.bound_to(self) for item in self._llstartup)
+        router.on_shutdown.extend(item.bound_to(self) for item in self._llshutdown)
+
+        for item in self._llroutes:
+            router.add_api_route(item.path, item.bound_to(self), **item.kwargs)
+
+        app.include_router(router, prefix=prefix, **kwargs)

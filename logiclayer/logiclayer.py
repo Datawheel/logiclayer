@@ -6,7 +6,7 @@ Contains the main definitions for the LogicLayer class.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -78,12 +78,39 @@ class LogicLayer:
         for exc_cls, exc_handler in module.exception_handlers:
             self.app.add_exception_handler(exc_cls, exc_handler)
 
-    def add_redirect(self, path: str, url: str, *, code: int = 307, headers=None):
-        """"""
-        func = lambda: RedirectResponse(url=url, status_code=code, headers=headers)
-        self.add_route(path, func)
+    def add_redirect(
+        self,
+        path: str,
+        url: str,
+        *,
+        headers=None,
+        status_code: int = 307,
+        description: Optional[str] = None,
+        methods: Optional[List[str]] = None,
+        name: Optional[str] = None,
+    ):
+        """Setups a route with the sole purpose of redirecting the user to another location."""
+        logger.debug("Redirect added on path %s: %d", path, status_code)
+        self.app.add_api_route(
+            path,
+            lambda: RedirectResponse(url=url, status_code=status_code, headers=headers),  # type: ignore
+            description=description,
+            methods=methods,
+            name=name,
+        )
 
-    def add_route(self, path: str, func: CallableMayReturnCoroutine[Any], **kwargs):
+    def add_route(
+        self,
+        path: str,
+        endpoint: CallableMayReturnCoroutine[Any],
+        *,
+        status_code: Optional[int] = None,
+        description: Optional[str] = None,
+        deprecated: Optional[bool] = None,
+        methods: Optional[List[str]] = None,
+        name: Optional[str] = None,
+        **kwargs,
+    ):
         """Setups a path function to be used directly in the root app.
 
         Arguments:
@@ -92,8 +119,18 @@ class LogicLayer:
             func :Callable[..., Response] | Callable[..., Coroutine[Any, Any, Response]]:
                 The function which will serve the content for the route.
         """
-        logger.debug("Route added on path %s: %s", path, func.__name__)
-        self.app.add_api_route(path, func, **kwargs)
+
+        logger.debug("Route added on path %s: %s", path, endpoint.__name__)
+        self.app.add_api_route(
+            path,
+            endpoint,
+            status_code=status_code,
+            description=description,
+            deprecated=deprecated,
+            methods=methods,
+            name=name,
+            **kwargs,
+        )
 
     def add_static(self, path: str, target: Union[str, Path], *, html: bool = False):
         """Setups a static folder to serve the files inside it.

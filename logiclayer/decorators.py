@@ -1,5 +1,8 @@
 from typing import Any, Callable, Optional, Sequence, Set, Type, TypeVar, Union
 
+from fastapi.params import Depends
+from fastapi.responses import Response
+
 from logiclayer.module import (
     LOGICLAYER_METHOD_ATTR,
     CallableMayReturnCoroutine,
@@ -48,9 +51,29 @@ def route(
     path: str,
     *,
     debug: bool = False,
+    dependencies: Optional[Sequence[Depends]] = None,
+    deprecated: Optional[bool] = None,
+    description: Optional[str] = None,
+    include_in_schema: bool = True,
+    name: Optional[str] = None,
+    response_class: Optional[Type[Response]] = None,
+    status_code: Optional[int] = None,
+    summary: Optional[str] = None,
     **kwargs,
 ):
-    kwargs["methods"] = set([methods]) if isinstance(methods, str) else set(methods)
+    kwargs.update(
+        methods=set([methods]) if isinstance(methods, str) else set(methods),
+        dependencies=dependencies,
+        deprecated=deprecated,
+        description=description,
+        include_in_schema=include_in_schema,
+        name=name,
+        status_code=status_code,
+        summary=summary,
+    )
+
+    if response_class is not None:
+        kwargs["response_class"] = response_class
 
     def route_decorator(fn: C) -> C:
         method = ModuleMethod(

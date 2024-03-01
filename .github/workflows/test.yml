@@ -1,6 +1,7 @@
-name: Continuous Integration
+name: Publish a new version
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*'
@@ -10,49 +11,42 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9']
+        python-version: ['3.8', '3.9', '3.10', '3.11']
     name: Test on Python ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v4
 
       - name: Install poetry
         run: |
           python -m pip install --upgrade pip
           pip install poetry
-          poetry config virtualenvs.create false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
 
       - name: Install dependencies
-        run: poetry install -vvv
+        run: poetry install --with dev
 
       - name: Run tests
+        env:
+          TESSERACT_BACKEND: ${{ secrets.TESSERACT_BACKEND }}
         run: pytest ./tests
 
   release:
     needs: test
     runs-on: ubuntu-latest
     name: Create new release in PyPI
-    strategy:
-      matrix:
-        python-version: ['3.7']
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v4
 
       - name: Install poetry
         run: |
           python -m pip install --upgrade pip
           pip install poetry
-          poetry config virtualenvs.create false
-
+          
       - name: Publish release to PyPI
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN }}

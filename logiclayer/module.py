@@ -27,6 +27,7 @@ CallableMayReturnCoroutine = Callable[..., Union[T, Coroutine[Any, Any, T]]]
 class MethodType(Enum):
     EVENT_SHUTDOWN = auto()
     EVENT_STARTUP = auto()
+    EXCEPTION_HANDLER = auto()
     HEALTHCHECK = auto()
     ROUTE = auto()
 
@@ -68,6 +69,10 @@ class ModuleMeta(type):
             except AttributeError:
                 pass
 
+        attrdict["_llexceptions"] = {
+            item.kwargs["exception"]: item
+            for item in methods[MethodType.EXCEPTION_HANDLER]
+        }
         attrdict["_llhealthchecks"] = tuple(methods[MethodType.HEALTHCHECK])
         attrdict["_llroutes"] = tuple(methods[MethodType.ROUTE])
         attrdict["_llshutdown"] = tuple(methods[MethodType.EVENT_SHUTDOWN])
@@ -83,10 +88,11 @@ class LogicLayerModule(metaclass=ModuleMeta):
     Routes can be set using the provided decorators on any instance method.
     """
 
-    _llstartup: Tuple[ModuleMethod, ...]
-    _llshutdown: Tuple[ModuleMethod, ...]
+    _llexceptions: Dict[Type[Exception], ModuleMethod]
     _llhealthchecks: Tuple[ModuleMethod, ...]
     _llroutes: Tuple[ModuleMethod, ...]
+    _llshutdown: Tuple[ModuleMethod, ...]
+    _llstartup: Tuple[ModuleMethod, ...]
 
     def __init__(self, debug: bool = False, **kwargs):
         router = APIRouter(**kwargs)
@@ -104,6 +110,13 @@ class LogicLayerModule(metaclass=ModuleMeta):
     @property
     def route_paths(self):
         return (item.path for item in self._llroutes)
+
+    @property
+    def exception_handlers(self):
+        return (
+            (exc_cls, method.bound_to(self))
+            for exc_cls, method in self._llexceptions.items()
+        )
 
     async def _llhealthcheck(self) -> bool:
         try:

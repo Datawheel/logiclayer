@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Sequence, Set, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, Set, Type, TypeVar, Union
 
 from logiclayer.module import (
     LOGICLAYER_METHOD_ATTR,
@@ -8,6 +8,15 @@ from logiclayer.module import (
 )
 
 C = TypeVar("C", bound=Callable[..., Any])
+
+
+def exception_handler(exc: Type[Exception]):
+    def exception_handler_decorator(fn: C) -> C:
+        method = ModuleMethod(MethodType.EXCEPTION_HANDLER, func=fn)
+        setattr(fn, LOGICLAYER_METHOD_ATTR, method)
+        return fn
+
+    return exception_handler_decorator
 
 
 def healthcheck(func: CallableMayReturnCoroutine[bool]):

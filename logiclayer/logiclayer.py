@@ -67,6 +67,9 @@ class LogicLayer:
         self.app.include_router(module.router, prefix=prefix, **kwargs)
         self.add_check(module._llhealthcheck)
 
+        for exc_cls, exc_handler in module.exception_handlers:
+            self.app.add_exception_handler(exc_cls, exc_handler)
+
     def add_redirect(self, path: str, url: str, *, code: int = 307, headers=None):
         """"""
         func = lambda: RedirectResponse(url=url, status_code=code, headers=headers)

@@ -3,12 +3,8 @@ from typing import Any, Callable, Optional, Sequence, Set, Type, TypeVar, Union
 from fastapi.params import Depends
 from fastapi.responses import Response
 
-from logiclayer.module import (
-    LOGICLAYER_METHOD_ATTR,
-    CallableMayReturnCoroutine,
-    MethodType,
-    ModuleMethod,
-)
+from .common import LOGICLAYER_METHOD_ATTR, CallableMayReturnCoroutine
+from .module import MethodType, ModuleMethod
 
 C = TypeVar("C", bound=Callable[..., Any])
 

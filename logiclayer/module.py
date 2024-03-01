@@ -1,27 +1,14 @@
-import asyncio
 import dataclasses
-import inspect
 from collections import defaultdict
 from enum import Enum, auto
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Dict,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, Tuple, Type
 
 from fastapi import APIRouter
 
-LOGICLAYER_METHOD_ATTR = "_llmethod"
+from .common import LOGICLAYER_METHOD_ATTR, CallableMayReturnCoroutine
 
-T = TypeVar("T")
-CallableMayReturnAwaitable = Callable[..., Union[T, Awaitable[T]]]
-CallableMayReturnCoroutine = Callable[..., Union[T, Coroutine[Any, Any, T]]]
+if TYPE_CHECKING:
+    from .logiclayer import LogicLayer
 
 
 class MethodType(Enum):
@@ -125,13 +112,3 @@ class LogicLayerModule(metaclass=ModuleMeta):
             return all(item is True for item in result)
         except Exception:
             return False
-
-
-async def _await_for_it(check: CallableMayReturnAwaitable[Any]) -> Any:
-    """Wraps a function, which might be synchronous or asynchronous, into an
-    asynchronous function, which returns the value wrapped in a coroutine.
-    """
-    result = check()
-    if inspect.isawaitable(result):
-        return await result
-    return result

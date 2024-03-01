@@ -6,7 +6,7 @@ Contains the main definitions for the LogicLayer class.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -14,7 +14,10 @@ from starlette.responses import RedirectResponse, Response
 from starlette.status import HTTP_204_NO_CONTENT
 from starlette.types import Receive, Scope, Send
 
-from .module import CallableMayReturnCoroutine, LogicLayerModule, _await_for_it
+from .common import _await_for_it
+
+if TYPE_CHECKING:
+    from .module import CallableMayReturnCoroutine, LogicLayerModule
 
 logger = logging.getLogger("logiclayer")
 
@@ -26,7 +29,7 @@ class LogicLayer:
 
     app: FastAPI
     debug: bool
-    healthchecks: List[CallableMayReturnCoroutine[bool]]
+    healthchecks: List["CallableMayReturnCoroutine[bool]"]
 
     def __init__(self, *, debug: bool = False, healthchecks: bool = True):
         self.app = FastAPI()
@@ -46,7 +49,7 @@ class LogicLayer:
         """
         await self.app(scope, receive, send)
 
-    def add_check(self, func: CallableMayReturnCoroutine[bool]):
+    def add_check(self, func: "CallableMayReturnCoroutine[bool]"):
         """Stores a function to be constantly run as a healthcheck for the app.
 
         Arguments:
@@ -55,7 +58,7 @@ class LogicLayer:
         logger.debug("Check added: %s", func.__name__)
         self.healthchecks.append(func)
 
-    def add_module(self, prefix: str, module: LogicLayerModule, **kwargs):
+    def add_module(self, prefix: str, module: "LogicLayerModule", **kwargs):
         """Setups a module instance in the current LogicLayer instance.
 
         Arguments:
@@ -102,7 +105,7 @@ class LogicLayer:
     def add_route(
         self,
         path: str,
-        endpoint: CallableMayReturnCoroutine[Any],
+        endpoint: "CallableMayReturnCoroutine[Any]",
         *,
         status_code: Optional[int] = None,
         description: Optional[str] = None,

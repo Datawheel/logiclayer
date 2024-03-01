@@ -33,7 +33,7 @@ jobs:
       - name: Run tests
         env:
           TESSERACT_BACKEND: ${{ secrets.TESSERACT_BACKEND }}
-        run: pytest ./tests
+        run: poetry run pytest ./tests
 
   release:
     needs: test

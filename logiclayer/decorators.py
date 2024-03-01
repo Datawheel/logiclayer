@@ -39,7 +39,7 @@ def route(
     path: str,
     *,
     debug: bool = False,
-    **kwargs
+    **kwargs,
 ):
     kwargs["methods"] = set([methods]) if isinstance(methods, str) else set(methods)
 

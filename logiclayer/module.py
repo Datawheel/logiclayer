@@ -1,27 +1,34 @@
 import asyncio
 import dataclasses
 import inspect
-from enum import Enum
-from functools import partial, wraps
-from typing import Any, Awaitable, Callable, Coroutine, Dict, Tuple, TypeVar, Union
+from collections import defaultdict
+from enum import Enum, auto
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from fastapi import APIRouter
 
 LOGICLAYER_METHOD_ATTR = "_llmethod"
 
 T = TypeVar("T")
-CallableMayReturnAwaitable = Union[Callable[..., T], Callable[..., Awaitable[T]]]
-CallableMayReturnCoroutine = Union[
-    Callable[..., T],
-    Callable[..., Coroutine[Any, Any, T]],
-]
+CallableMayReturnAwaitable = Callable[..., Union[T, Awaitable[T]]]
+CallableMayReturnCoroutine = Callable[..., Union[T, Coroutine[Any, Any, T]]]
 
 
 class MethodType(Enum):
-    HEALTHCHECK = 1
-    ROUTE = 2
-    EVENT_STARTUP = 3
-    EVENT_SHUTDOWN = 4
+    EVENT_SHUTDOWN = auto()
+    EVENT_STARTUP = auto()
+    HEALTHCHECK = auto()
+    ROUTE = auto()
 
 
 @dataclasses.dataclass
@@ -32,6 +39,20 @@ class ModuleMethod:
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
     path: str = ""
 
+    def bound_to(self, instance: "LogicLayerModule") -> CallableMayReturnCoroutine[Any]:
+        """Returns the bound function belonging to the instance of the
+        LogicLayerModule subclass that matches the name of the original function.
+
+        This bound function doesn't contain the 'self' parameter in its arguments.
+        """
+        name = self.func.__name__
+        func = getattr(instance, name)
+        if func.__func__ != self.func:
+            raise ValueError(
+                f"Bound function '{name}' doesn't match the original method of the Module"
+            )
+        return func
+
 
 class ModuleMeta(type):
     """Base LogicLayer Module Metaclass."""
@@ -39,12 +60,19 @@ class ModuleMeta(type):
     def __new__(
         cls, clsname: str, supercls: Tuple[type, ...], attrdict: Dict[str, Any]
     ):
-        attrdict["_llchecklist"] = tuple()
-        attrdict["_llmethods"] = tuple(
-            getattr(item, LOGICLAYER_METHOD_ATTR)
-            for item in attrdict.values()
-            if hasattr(item, LOGICLAYER_METHOD_ATTR)
-        )
+        methods: defaultdict[MethodType, list[ModuleMethod]] = defaultdict(list)
+        for item in attrdict.values():
+            try:
+                method: ModuleMethod = getattr(item, LOGICLAYER_METHOD_ATTR)
+                methods[method.kind].append(method)
+            except AttributeError:
+                pass
+
+        attrdict["_llhealthchecks"] = tuple(methods[MethodType.HEALTHCHECK])
+        attrdict["_llroutes"] = tuple(methods[MethodType.ROUTE])
+        attrdict["_llshutdown"] = tuple(methods[MethodType.EVENT_SHUTDOWN])
+        attrdict["_llstartup"] = tuple(methods[MethodType.EVENT_STARTUP])
+
         return super(ModuleMeta, cls).__new__(cls, clsname, supercls, attrdict)
 
 
@@ -55,35 +83,34 @@ class LogicLayerModule(metaclass=ModuleMeta):
     Routes can be set using the provided decorators on any instance method.
     """
 
-    _llchecklist: Tuple[ModuleMethod, ...]
-    _llmethods: Tuple[ModuleMethod, ...]
+    _llstartup: Tuple[ModuleMethod, ...]
+    _llshutdown: Tuple[ModuleMethod, ...]
+    _llhealthchecks: Tuple[ModuleMethod, ...]
+    _llroutes: Tuple[ModuleMethod, ...]
 
-    def __init__(self, **kwargs):
+    def __init__(self, debug: bool = False, **kwargs):
         router = APIRouter(**kwargs)
 
-        for item in self._llmethods:
-            if item.kind == MethodType.HEALTHCHECK:
-                continue
-            func = _bind_if_needed(item.func, self)
-            if item.kind == MethodType.ROUTE:
-                router.add_api_route(item.path, func, **item.kwargs)
-            elif item.kind == MethodType.EVENT_STARTUP:
-                router.add_event_handler("startup", func)
-            elif item.kind == MethodType.EVENT_SHUTDOWN:
-                router.add_event_handler("shutdown", func)
+        router.on_startup.extend(item.bound_to(self) for item in self._llstartup)
+        router.on_shutdown.extend(item.bound_to(self) for item in self._llshutdown)
 
+        for item in self._llroutes:
+            func = item.bound_to(self)
+            router.add_api_route(item.path, func, **item.kwargs)
+
+        self.debug = debug
         self.router = router
-        self._llchecklist = tuple(
-            item for item in self._llmethods if item.kind == MethodType.HEALTHCHECK
-        )
+
+    @property
+    def route_paths(self):
+        return (item.path for item in self._llroutes)
 
     async def _llhealthcheck(self) -> bool:
-        checklist = self._llchecklist
         try:
-            gen = (_await_for_it(item.func) for item in checklist)
+            gen = (_await_for_it(item.func) for item in self._llhealthchecks)
             result = await asyncio.gather(*gen)
             return all(item is True for item in result)
-        except Exception as exc:
+        except Exception:
             return False
 
 
@@ -93,32 +120,5 @@ async def _await_for_it(check: CallableMayReturnAwaitable[Any]) -> Any:
     """
     result = check()
     if inspect.isawaitable(result):
-        result = await result
+        return await result
     return result
-
-
-def _bind_if_needed(func, self):
-    """Creates a binding of the `func` method to the `self` object as the first
-    positional parameter, only if this positional parameter is called 'self'."""
-    sig = inspect.signature(func)
-    if "self" in sig.parameters:
-        if inspect.iscoroutinefunction(func):
-            return async_partial(func, self)
-
-        pfunc = partial(func, self)
-        setattr(pfunc, "__name__", func.__name__)
-        return pfunc
-    return func
-
-
-def async_partial(func, self):
-    """Async-enabled monkeypatch for the partial function."""
-    pfunc = partial(func, self)
-    name = getattr(func, "__name__", "func")  # FIXME
-    setattr(pfunc, "__name__", name)
-
-    @wraps(pfunc)
-    async def wrapper(*args, **kwargs):
-        return await func(self, *args, **kwargs)
-
-    return wrapper

@@ -11,6 +11,7 @@ from typing import Any, List, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse, Response
+from starlette.status import HTTP_204_NO_CONTENT
 from starlette.types import Receive, Scope, Send
 
 from .module import CallableMayReturnCoroutine, LogicLayerModule, _await_for_it
@@ -24,16 +25,20 @@ class LogicLayer:
     Instances of this class act like ASGI callables."""
 
     app: FastAPI
-    _checklist: List[CallableMayReturnCoroutine[bool]]
-    _debug: bool
+    debug: bool
+    healthchecks: List[CallableMayReturnCoroutine[bool]]
 
     def __init__(self, *, debug: bool = False, healthchecks: bool = True):
         self.app = FastAPI()
-        self._checklist = []
-        self._debug = debug
+        self.debug = debug
+        self.healthchecks = []
 
         if healthchecks:
-            self.app.add_api_route("/_health", _new_healthcheck(self._checklist))
+            self.app.add_api_route(
+                "/_health",
+                endpoint=self.call_healthchecks,
+                name="LogicLayer healthcheck",
+            )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """This method converts the :class:`LogicLayer` instance into an
@@ -48,7 +53,7 @@ class LogicLayer:
             func :Callable[..., Coroutine[Any, Any, Response]]:
         """
         logger.debug("Check added: %s", func.__name__)
-        self._checklist.append(func)
+        self.healthchecks.append(func)
 
     def add_module(self, prefix: str, module: LogicLayerModule, **kwargs):
         """Setups a module instance in the current LogicLayer instance.
@@ -63,7 +68,10 @@ class LogicLayer:
         Keyword arguments:
             {any from :func:`FastAPI.include_router` function}
         """
+
         logger.debug("Module added on path %s: %s", prefix, type(module).__name__)
+
+        module.debug = self.debug
         self.app.include_router(module.router, prefix=prefix, **kwargs)
         self.add_check(module._llhealthcheck)
 
@@ -112,20 +120,13 @@ class LogicLayer:
         """Forces a call to all handlers registered for the 'shutdown' event."""
         await self.app.router.shutdown()
 
-
-def _new_healthcheck(checklist: List[CallableMayReturnCoroutine[bool]]):
-    """Creates a healthcheck route function, which runs all callables in
-    `checklist` for diagnostic."""
-
-    async def ll_healthcheck():
+    async def call_healthchecks(self):
         try:
-            gen = (_await_for_it(item) for item in checklist)
+            gen = (_await_for_it(item) for item in self.healthchecks)
             await asyncio.gather(*gen)
         except Exception as exc:
-            msg = "An element in Healthcheck failed."
-            logger.error(msg, exc_info=exc)
-            raise HTTPException(500, msg) from None
+            logger.error("Healthcheck failure", exc_info=exc)
+        else:
+            return Response(status_code=HTTP_204_NO_CONTENT)
 
-        return Response("", status_code=204)
-
-    return ll_healthcheck
+        raise HTTPException(500, "One of the healthchecks failed.")

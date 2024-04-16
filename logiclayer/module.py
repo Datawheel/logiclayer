@@ -1,10 +1,11 @@
 import dataclasses
 from collections import defaultdict
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Dict, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type
 
 from fastapi import APIRouter
 
+from .auth import AuthProvider, VoidAuthProvider
 from .common import LOGICLAYER_METHOD_ATTR, CallableMayReturnCoroutine
 
 if TYPE_CHECKING:
@@ -75,6 +76,7 @@ class LogicLayerModule(metaclass=ModuleMeta):
     Routes can be set using the provided decorators on any instance method.
     """
 
+    auth: AuthProvider
     router: APIRouter
     _llexceptions: Dict[Type[Exception], ModuleMethod]
     _llhealthchecks: Tuple[ModuleMethod, ...]
@@ -82,7 +84,8 @@ class LogicLayerModule(metaclass=ModuleMeta):
     _llshutdown: Tuple[ModuleMethod, ...]
     _llstartup: Tuple[ModuleMethod, ...]
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, auth: Optional[AuthProvider] = None, **kwargs):
+        self.auth = auth or VoidAuthProvider()
         self.router = APIRouter(**kwargs)
 
     @property

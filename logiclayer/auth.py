@@ -1,7 +1,6 @@
 import abc
-from typing import Any, List, Mapping, NamedTuple, Optional
-
 import enum
+from typing import Any, Mapping, NamedTuple, Optional, Set
 
 
 class AuthTokenType(enum.Enum):
@@ -17,13 +16,13 @@ class AuthTokenType(enum.Enum):
 class AuthToken(NamedTuple):
     """Defines a transport object for the parsed token used in a server request."""
 
-    kind = AuthTokenType
-    value = str
+    kind: AuthTokenType
+    value: str
 
 
 class AuthProvider(abc.ABC):
     @abc.abstractmethod
-    def get_roles(self, token: Optional["AuthToken"]) -> List[str]:
+    def get_roles(self, token: Optional["AuthToken"]) -> Set[str]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -33,7 +32,7 @@ class AuthProvider(abc.ABC):
 
 class VoidAuthProvider(AuthProvider):
     def get_roles(self, token):
-        return []
+        return set()
 
     def get_user(self, token):
         return None

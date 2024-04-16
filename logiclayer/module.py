@@ -96,7 +96,7 @@ class LogicLayerModule(metaclass=ModuleMeta):
     def route_paths(self):
         return (item.path for item in self._llroutes)
 
-    def include_into(self, layer: "LogicLayer", *, prefix: str, **kwargs):
+    def include_into(self, layer: "LogicLayer", **kwargs):
         app = layer.app
         router = self.router
 
@@ -112,4 +112,4 @@ class LogicLayerModule(metaclass=ModuleMeta):
         for item in self._llroutes:
             router.add_api_route(item.path, item.bound_to(self), **item.kwargs)
 
-        app.include_router(router, prefix=prefix, **kwargs)
+        app.include_router(router, **kwargs)

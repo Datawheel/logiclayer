@@ -164,3 +164,10 @@ class LogicLayer:
             return Response(status_code=HTTP_204_NO_CONTENT)
 
         raise HTTPException(500, "One of the healthchecks failed.")
+
+    def route(self, path: str, **kwargs):
+        def route_decorator(fn):
+            self.add_route(path, fn, **kwargs)
+            return fn
+
+        return route_decorator

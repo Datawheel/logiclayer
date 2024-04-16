@@ -49,3 +49,11 @@ jobs:
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN }}
         run: poetry publish --build
+
+      - name: Create Github Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+          generate_release_notes: true
+          make_latest: true

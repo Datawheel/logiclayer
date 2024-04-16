@@ -10,7 +10,7 @@ repository = "https://github.com/Datawheel/logiclayer"
 [tool.poetry.dependencies]
 python = "^3.8"
 asyncio = "^3.4.0"
-fastapi = ">=0.75 <1.0"
+fastapi = ">=0.100 <1.0"
 
 [tool.poetry.group.dev.dependencies]
 httpx = ">=0.20.0"

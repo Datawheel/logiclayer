@@ -31,8 +31,6 @@ jobs:
         run: poetry install --with dev
 
       - name: Run tests
-        env:
-          TESSERACT_BACKEND: ${{ secrets.TESSERACT_BACKEND }}
         run: poetry run pytest ./tests
 
   release:

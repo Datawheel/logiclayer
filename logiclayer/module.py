@@ -1,7 +1,7 @@
-import dataclasses
+import dataclasses as dcls
 from collections import defaultdict
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type, Union
 
 from fastapi import APIRouter
 
@@ -20,12 +20,12 @@ class MethodType(Enum):
     ROUTE = auto()
 
 
-@dataclasses.dataclass
+@dcls.dataclass
 class ModuleMethod:
     kind: MethodType
     func: CallableMayReturnCoroutine[Any]
     debug_only: bool = False
-    kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
+    kwargs: Dict[str, Any] = dcls.field(default_factory=dict)
     path: str = ""
 
     def bound_to(self, instance: "LogicLayerModule") -> CallableMayReturnCoroutine[Any]:
@@ -84,8 +84,11 @@ class LogicLayerModule(metaclass=ModuleMeta):
     _llshutdown: Tuple[ModuleMethod, ...]
     _llstartup: Tuple[ModuleMethod, ...]
 
-    def __init__(self, *, auth: Optional[AuthProvider] = None, **kwargs):
+    def __init__(
+        self, *, auth: Optional[AuthProvider] = None, debug: bool = False, **kwargs
+    ):
         self.auth = auth or VoidAuthProvider()
+        self.debug = debug
         self.router = APIRouter(**kwargs)
 
     @property
@@ -113,3 +116,11 @@ class LogicLayerModule(metaclass=ModuleMeta):
             router.add_api_route(item.path, item.bound_to(self), **item.kwargs)
 
         app.include_router(router, **kwargs)
+
+
+@dcls.dataclass
+class ModuleStatus:
+    module: str
+    version: str
+    debug: Union[bool, dict]
+    extras: dict

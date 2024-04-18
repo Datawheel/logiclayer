@@ -3,7 +3,7 @@
 from .auth import AuthProvider, AuthToken, AuthTokenType
 from .decorators import exception_handler, healthcheck, on_shutdown, on_startup, route
 from .logiclayer import LogicLayer
-from .module import LogicLayerModule
+from .module import LogicLayerModule, ModuleStatus
 
 __all__ = (
     "AuthProvider",
@@ -13,6 +13,7 @@ __all__ = (
     "healthcheck",
     "LogicLayer",
     "LogicLayerModule",
+    "ModuleStatus",
     "on_shutdown",
     "on_startup",
     "route",

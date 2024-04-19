@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "logiclayer"
-version = "0.3.2"
+version = "0.3.3"
 description = "A framework to quickly compose and use multiple functionalities as endpoints."
 authors = ["Francisco Abarzua <francisco@datawheel.us>"]
 license = "MIT"

@@ -118,9 +118,17 @@ class LogicLayerModule(metaclass=ModuleMeta):
         app.include_router(router, **kwargs)
 
 
-@dcls.dataclass
+@dcls.dataclass(eq=False, frozen=True, init=False, order=False)
 class ModuleStatus:
     module: str
     version: str
     debug: Union[bool, dict]
     extras: dict
+
+    def __init__(
+        self, module: str, *, debug: Union[bool, dict], version: str, **kwargs
+    ):
+        self.debug = debug
+        self.extras = kwargs
+        self.module = module
+        self.version = version

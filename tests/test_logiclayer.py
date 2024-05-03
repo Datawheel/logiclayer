@@ -10,8 +10,10 @@ def test_route_status(layer: ll.LogicLayer):
     assert res.status_code == 200
     assert res.json() == {
         "status": "ok",
-        "software": "LogicLayer",
+        "module": "LogicLayer",
         "version": ll.__version__,
+        "debug": True,
+        "mode": "testing",
     }
 
 

@@ -4,6 +4,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type, Union
 
 from fastapi import APIRouter
+from pydantic import BaseModel, ConfigDict
 
 from .auth import AuthProvider, VoidAuthProvider
 from .common import LOGICLAYER_METHOD_ATTR, CallableMayReturnCoroutine
@@ -118,17 +119,10 @@ class LogicLayerModule(metaclass=ModuleMeta):
         app.include_router(router, **kwargs)
 
 
-@dcls.dataclass(eq=False, frozen=True, init=False, order=False)
-class ModuleStatus:
+class ModuleStatus(BaseModel):
+    model_config = ConfigDict(extra="allow", frozen=True)
+
     module: str
     version: str
     debug: Union[bool, dict]
-    extras: dict
-
-    def __init__(
-        self, module: str, *, debug: Union[bool, dict], version: str, **kwargs
-    ):
-        self.debug = debug
-        self.extras = kwargs
-        self.module = module
-        self.version = version
+    status: str

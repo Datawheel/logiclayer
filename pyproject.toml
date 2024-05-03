@@ -11,12 +11,13 @@ repository = "https://github.com/Datawheel/logiclayer"
 python = "^3.8"
 asyncio = "^3.4.0"
 fastapi = ">=0.100 <1.0"
+pydantic = "^2.5.0"
 
 [tool.poetry.group.dev.dependencies]
 httpx = ">=0.20.0"
-pytest = "^8.0.2"
+pytest = "~8.1.0"
 ruff = "^0.4.0"
-uvicorn = "^0.27.0"
+uvicorn = "^0.29.0"
 
 [build-system]
 requires = ["poetry-core"]

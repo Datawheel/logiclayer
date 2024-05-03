@@ -142,6 +142,10 @@ class LogicLayer:
 
         raise HTTPException(500, "One of the healthchecks failed.")
 
+    def healthcheck(self, fn: "CallableMayReturnCoroutine[bool]"):
+        self.add_check(fn)
+        return fn
+
     def route(self, path: str, **kwargs):
         def route_decorator(fn):
             self.add_route(path, fn, **kwargs)

@@ -7,7 +7,7 @@ def test_route_status(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.json() == {
         "status": "ok",
         "module": "LogicLayer",
@@ -21,7 +21,7 @@ def test_route_check(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/_health")
 
-    assert res.status_code == 204
+    assert res.status_code == 204, res.text
     assert res.text == ""
 
 
@@ -29,7 +29,7 @@ def test_route_index(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/echo/")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.json() == {"label": "Hello"}
 
 
@@ -37,7 +37,7 @@ def test_route_file(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/echo/file.asdf")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.text == "Label: Hello\nExtension: asdf"
 
 
@@ -45,7 +45,7 @@ def test_route_error(layer: ll.LogicLayer):
     with TestClient(app=layer, base_url="http://demoserver/") as client:
         res = client.get("/echo/error")
 
-    assert res.status_code == 504
+    assert res.status_code == 504, res.text
     assert res.json() == {
         "label": "Hello",
         "route": "exc_valueerror",
@@ -59,8 +59,8 @@ def test_route_random(layer: ll.LogicLayer):
         res1 = client.get("/echo/random")
         res2 = client.get("/echo/random")
 
-    assert res1.status_code == 200
-    assert res2.status_code == 200
+    assert res1.status_code == 200, res1.text
+    assert res2.status_code == 200, res2.text
     assert res1.json() == res2.json()
 
 
@@ -68,7 +68,7 @@ def test_route_empty(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/echo/empty")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.json() == {}
 
 
@@ -76,7 +76,7 @@ def test_route_query(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/echo/number?value=10")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.json() == {"number": 10}
 
 
@@ -84,5 +84,5 @@ def test_route_path(layer: ll.LogicLayer):
     with TestClient(app=layer) as client:
         res = client.get("/echo/string-beta")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.json() == {"string": "beta"}

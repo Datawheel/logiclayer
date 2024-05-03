@@ -23,15 +23,6 @@ class BodySchema:
     value: str
 
 
-def route_check():
-    res = httpx.get("http://clients3.google.com/generate_204")
-    return (res.status_code == 204) and (res.headers.get("Content-Length") == 0)
-
-
-def route_status():
-    return {"status": "ok", "software": "LogicLayer", "version": ll.__version__}
-
-
 class EchoModule(ll.LogicLayerModule):
     def __init__(self, label: str, **kwargs):
         super().__init__(**kwargs)
@@ -101,8 +92,22 @@ def layer():
     echo = EchoModule("Hello")
 
     layer = ll.LogicLayer()
-    layer.add_check(route_check)
-    layer.add_route("/", route_status)
     layer.add_module("/echo", echo)
+
+    @layer.healthcheck
+    async def route_check():
+        async with httpx.AsyncClient() as client:
+            res = await client.get("http://clients3.google.com/generate_204")
+        return (res.status_code == 204) and (res.headers.get("Content-Length") == 0)
+
+    @layer.route("/", response_model=ll.ModuleStatus)
+    def route_status():
+        return {
+            "status": "ok",
+            "module": "LogicLayer",
+            "version": ll.__version__,
+            "debug": True,
+            "mode": "testing",
+        }
 
     return layer

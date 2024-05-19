@@ -1,10 +1,25 @@
 import abc
 import enum
-from typing import Any, Mapping, NamedTuple, Optional, Set
+from typing import Any, Iterable, Mapping, NamedTuple, Optional, Set
+
+from .common import LogicLayerException
+
+
+class NotAuthorized(LogicLayerException):
+    """The roles provided don't match the roles needed to access some of the
+    requested parameters."""
+
+    def __init__(self, resource: str, roles: Iterable[str]) -> None:
+        super().__init__(
+            f"Requested resource '{resource}' is not allowed for the roles "
+            f"provided by authorization credentials: '{', '.join(roles)}'"
+        )
+        self.resource = resource
+        self.roles = roles
 
 
 class AuthTokenType(enum.Enum):
-    APIKEY = enum.auto()
+    SEARCHPARAM = enum.auto()
     BASIC = enum.auto()
     CUSTOM = enum.auto()
     DIGEST = enum.auto()
@@ -14,7 +29,7 @@ class AuthTokenType(enum.Enum):
 
 
 class AuthToken(NamedTuple):
-    """Defines a transport object for the parsed token used in a server request."""
+    """Defines a container for the parsed token used in a server request."""
 
     kind: AuthTokenType
     value: str

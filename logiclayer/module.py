@@ -114,6 +114,8 @@ class LogicLayerModule(metaclass=ModuleMeta):
         router.on_shutdown.extend(item.bound_to(self) for item in self._llshutdown)
 
         for item in self._llroutes:
+            if item.debug_only and not self.debug:
+                continue
             router.add_api_route(item.path, item.bound_to(self), **item.kwargs)
 
         app.include_router(router, **kwargs)

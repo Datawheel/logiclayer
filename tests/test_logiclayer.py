@@ -86,3 +86,15 @@ def test_route_path(layer: ll.LogicLayer):
 
     assert res.status_code == 200, res.text
     assert res.json() == {"string": "beta"}
+
+
+def test_route_debug(layer: ll.LogicLayer):
+    with TestClient(app=layer) as client:
+        res1 = client.get("/echo/debug")
+        res2 = client.get("/echo2/debug")
+
+    assert res1.status_code == 404, res1.text
+    assert res1.json() == {"detail": "Not Found"}
+
+    assert res2.status_code == 200, res2.text
+    assert res2.json() == {"debug": True}

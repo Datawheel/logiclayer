@@ -74,6 +74,10 @@ class EchoModule(ll.LogicLayerModule):
     async def route_body(self, body: BodySchema):
         return body.value
 
+    @ll.route("GET", "/debug", debug=True)
+    def route_debug(self):
+        return {"debug": True}
+
     @ll.exception_handler(ValueError)
     def exc_valueerror(self, request: "Request", exc: "ValueError"):
         return JSONResponse(
@@ -90,8 +94,10 @@ class EchoModule(ll.LogicLayerModule):
 @pytest.fixture
 def layer():
     echo = EchoModule("Hello")
+    echo_debug = EchoModule("World", debug=True)
 
     layer = ll.LogicLayer()
+    layer.add_module("/echo2", echo_debug)
     layer.add_module("/echo", echo)
 
     @layer.healthcheck

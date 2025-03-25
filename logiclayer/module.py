@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import dataclasses as dcls
 from collections import defaultdict
+from collections.abc import Generator
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
@@ -26,21 +29,23 @@ class ModuleMethod:
     kind: MethodType
     func: CallableMayReturnCoroutine[Any]
     debug_only: bool = False
-    kwargs: Dict[str, Any] = dcls.field(default_factory=dict)
+    kwargs: dict[str, Any] = dcls.field(default_factory=dict)
     path: str = ""
 
-    def bound_to(self, instance: "LogicLayerModule") -> CallableMayReturnCoroutine[Any]:
-        """Returns the bound function belonging to the instance of the
-        LogicLayerModule subclass that matches the name of the original function.
+    def bound_to(self, instance: LogicLayerModule) -> CallableMayReturnCoroutine[Any]:
+        """Retrieve the function bound to the LogicLayerModule.
 
-        This bound function doesn't contain the 'self' parameter in its arguments.
+        Returns the function bound to the instance of the LogicLayerModule subclass
+        that matches the name of the original function. This bound function doesn't
+        contain the 'self' parameter in its arguments.
         """
         name = self.func.__name__
         func = getattr(instance, name)
+
         if func.__func__ != self.func:
-            raise ValueError(
-                f"Bound function '{name}' doesn't match the original method of the Module"
-            )
+            msg = (f"Bound function '{name}' doesn't match the original method of the Module",)
+            raise ValueError(msg)
+
         return func
 
 
@@ -48,19 +53,21 @@ class ModuleMeta(type):
     """Base LogicLayer Module Metaclass."""
 
     def __new__(
-        cls, clsname: str, supercls: Tuple[type, ...], attrdict: Dict[str, Any]
+        cls,
+        clsname: str,
+        supercls: tuple[type, ...],
+        attrdict: dict[str, Any],
     ):
         methods: defaultdict[MethodType, list[ModuleMethod]] = defaultdict(list)
         for item in attrdict.values():
             try:
                 method: ModuleMethod = getattr(item, LOGICLAYER_METHOD_ATTR)
                 methods[method.kind].append(method)
-            except AttributeError:
+            except AttributeError:  # noqa: PERF203
                 pass
 
         attrdict["_llexceptions"] = {
-            item.kwargs["exception"]: item
-            for item in methods[MethodType.EXCEPTION_HANDLER]
+            item.kwargs["exception"]: item for item in methods[MethodType.EXCEPTION_HANDLER]
         }
         attrdict["_llhealthchecks"] = tuple(methods[MethodType.HEALTHCHECK])
         attrdict["_llroutes"] = tuple(methods[MethodType.ROUTE])
@@ -79,28 +86,29 @@ class LogicLayerModule(metaclass=ModuleMeta):
 
     auth: AuthProvider
     router: APIRouter
-    _llexceptions: Dict[Type[Exception], ModuleMethod]
-    _llhealthchecks: Tuple[ModuleMethod, ...]
-    _llroutes: Tuple[ModuleMethod, ...]
-    _llshutdown: Tuple[ModuleMethod, ...]
-    _llstartup: Tuple[ModuleMethod, ...]
+    _llexceptions: dict[type[Exception], ModuleMethod]
+    _llhealthchecks: tuple[ModuleMethod, ...]
+    _llroutes: tuple[ModuleMethod, ...]
+    _llshutdown: tuple[ModuleMethod, ...]
+    _llstartup: tuple[ModuleMethod, ...]
 
-    def __init__(
-        self, *, auth: Optional[AuthProvider] = None, debug: bool = False, **kwargs
-    ):
+    def __init__(self, *, auth: AuthProvider | None = None, debug: bool = False, **kwargs):
         self.auth = auth or VoidAuthProvider()
         self.debug = debug
         self.router = APIRouter(**kwargs)
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """Return the name of this module."""
         return type(self).__name__
 
     @property
-    def route_paths(self):
+    def route_paths(self) -> Generator[str, None, None]:
+        """Yields the route paths configured in this module."""
         return (item.path for item in self._llroutes)
 
-    def include_into(self, layer: "LogicLayer", **kwargs):
+    def include_into(self, layer: LogicLayer, **kwargs) -> None:
+        """Configure this Module instance into the provided LogicLayer."""
         app = layer.app
         router = self.router
 
@@ -122,9 +130,11 @@ class LogicLayerModule(metaclass=ModuleMeta):
 
 
 class ModuleStatus(BaseModel):
+    """Common class to describe the status of the resources related to a Module."""
+
     model_config = ConfigDict(extra="allow", frozen=True)
 
     module: str
     version: str
-    debug: Union[bool, dict]
+    debug: Union[bool, dict[str, Any]]
     status: str

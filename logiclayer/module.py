@@ -27,12 +27,12 @@ class MethodType(Enum):
 @dcls.dataclass
 class ModuleMethod:
     kind: MethodType
-    func: CallableMayReturnCoroutine[Any]
+    func: CallableMayReturnCoroutine[..., Any]
     debug_only: bool = False
     kwargs: dict[str, Any] = dcls.field(default_factory=dict)
     path: str = ""
 
-    def bound_to(self, instance: LogicLayerModule) -> CallableMayReturnCoroutine[Any]:
+    def bound_to(self, instance: LogicLayerModule) -> CallableMayReturnCoroutine[..., Any]:
         """Retrieve the function bound to the LogicLayerModule.
 
         Returns the function bound to the instance of the LogicLayerModule subclass
@@ -95,7 +95,7 @@ class LogicLayerModule(metaclass=ModuleMeta):
     def __init__(self, *, auth: AuthProvider | None = None, debug: bool = False, **kwargs):
         self.auth = auth or VoidAuthProvider()
         self.debug = debug
-        self.router = APIRouter(**kwargs)
+        self.router = APIRouter(**kwargs, tags=[self.name])
 
     @property
     def name(self) -> str:

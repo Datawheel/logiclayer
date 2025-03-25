@@ -8,7 +8,7 @@ readme = "PACKAGE.md"
 repository = "https://github.com/Datawheel/logiclayer"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 asyncio = "^3.4.0"
 fastapi-slim = ">=0.111 <1.0"
 pydantic = "^2.5.0"

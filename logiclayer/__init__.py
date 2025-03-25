@@ -2,7 +2,7 @@
 
 __title__ = "logiclayer"
 __description__ = "A framework to quickly compose and use multiple functionalities as endpoints."
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 __all__ = (
     "AuthProvider",
